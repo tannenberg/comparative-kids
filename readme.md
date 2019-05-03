@@ -1,1 +1,1 @@
-This is an app that fetches my childhood weight and height data, 
+This is an app that fetches my childhood weight and height data from a google spreadsheet. Its purpose is to make my kids aware of their potential shortcomings, and to mitigate the damage from when I inevitably lose their paper booklets from the health center containing all their data. 
