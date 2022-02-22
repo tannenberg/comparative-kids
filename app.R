@@ -3,13 +3,19 @@ library(shiny)
 library(tidyverse)
 library(lubridate)
 library(rio)
-library(hrbrthemes)
+library(highcharter)
+library(viridis)
+library(shinythemes)
+library(shinyWidgets)
 
 df <- rio::import("https://docs.google.com/spreadsheets/d/1NSPYkxTzIE7USvVa7MmhcOQPSDgfao17-6QFbSlAM-Q/edit?usp=sharing") %>%
   mutate(date = as_date(as.character(date)),
          age_days = ifelse(kid=="Marcus", day(days(ymd(date)) - days(ymd("1987-08-30"))),
-                           ifelse(kid=="Julius", day(days(ymd(date)) - days(ymd("2015-07-12"))),
-                                  ifelse(kid=="Mio", day(days(ymd(date)) - days(ymd("2018-10-22"))), NA))))
+                    ifelse(kid=="Julius", day(days(ymd(date)) - days(ymd("2015-07-12"))),
+                    ifelse(kid=="Mio", day(days(ymd(date)) - days(ymd("2018-10-22"))),
+                    ifelse(kid=="Philip", day(days(ymd(date)) - days(ymd("1985-05-12"))),
+                    ifelse(kid=="Hilma", day(days(ymd(date)) - days(ymd("2021-10-20"))),
+                                                       NA))))))
 
 my_xlim <- df %>% group_by(kid) %>%
   summarise(max = max(age_days, na.rm=T) + 50)
@@ -21,19 +27,44 @@ start_value <-  df %>%
 start_value <- start_value[1,1]
 start_value <- plyr::round_any(start_value, 100, f=ceiling)
 
+colors <- rev(viridisLite::viridis(5))
+
+slide_col <- viridisLite::viridis(6)[3]
+
+slider <-  sliderInput(inputId = "xmax",
+                       label = "Adjust timeline (x-axis)",
+                       min = 100, max = 3000,
+                       value = 2000, step = 100,
+                       sep = "", 
+                       width = "100%")
+
 
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
-
+  fluidPage(
+    titlePanel("Comparative Kids"),
+    
+    p("This app compares my childhood weight and height measures to those of my kids, my brother and my niece"),
+    
+    setSliderColor(c(slide_col), c(1)),
+    
+    theme = shinytheme("paper"),
+    fluidRow(column(10, offset = 1, slider)),
+    fluidRow(column(10, offset = 1, highchartOutput("plot_weight"))),
+    fluidRow(column(10, offset = 1, highchartOutput("plot_height")))
+    
+    #fluidRow(
+    #  column(offset = 1, 5, highchartOutput("hcpopiramid")),
+    #  column(5, highchartOutput("hctss"))
   # App title ----
-  titlePanel("Comparative Kids"),
-  p("This app compares my childhood weight and height measures to those of my kids."),
+  #titlePanel("Comparative Kids"),
+  #p("This app compares my childhood weight and height measures to those of my kids."),
 
   # Sidebar layout with input and output definitions ----
-  sidebarLayout(
+  #sidebarLayout(
 
     # Sidebar panel for inputs ----
-    sidebarPanel(
+    #sidebarPanel(
 
       # Input: Slider for the number of bins ----
       #selectInput(inputId = "xmax",
@@ -43,65 +74,52 @@ ui <- fluidPage(
       #                        "Marcus" = 2500))
       #
 
-      sliderInput(inputId = "xmax",
-                  label = "Adjust timeline (x-axis)",
-                  min = 100, max = 2500,
-                  value = start_value, step = 100,
-                  sep = "" )
-    ),
+     
 
     # Main panel for displaying outputs ----
-    mainPanel(
+   # mainPanel(
 
       # Output: Histogram ----
-      plotOutput(outputId = "plot_weight", width = "100%", height = "400px"),
-      plotOutput(outputId = "plot_height", width = "100%", height = "400px")
+      #highchartOutput(outputId = "plot_weight", width = "100%", height = "400px"),
+      #plotOutput(outputId = "plot_height", width = "100%", height = "400px")
 
     )
   )
-)
+
 
 # Define server logic required to draw a histogram
 
 server <- function(input, output) {
 
-   output$plot_weight <- renderPlot({
+   output$plot_weight <- renderHighchart({
       #
       df %>%
         filter(!is.na(weight)) %>%
         filter(age_days < input$xmax + 50) %>%
-        ggplot(aes(x=age_days, y = weight/1000, color=kid)) +
-        geom_line(size=2, alpha=.7) +
-        geom_point(size=2) +
-        xlim(0, input$xmax) +
-        #ylim(2.5, 16) +
-        scale_color_viridis_d() +
-        theme_ipsum(base_size = 14, axis_title_size = 16) +
-        theme(legend.title=element_text(size=16),
-             legend.text=element_text(size=16),
-             legend.position = "top") +
-        labs(x="Age (days)", y="Weight (kg)", color="")
-
+       
+       hchart(., "spline", hcaes(age_days, weight/1000, group=kid)) %>% 
+       hc_colors(colors) %>% 
+       hc_xAxis(title= list(text ="Age (days)")) %>% 
+       hc_yAxis(title= list(text ="Weight (kg)"))
+       
+      
      })
-
-     output$plot_height <- renderPlot({
-       #
-       df %>%
-         filter(!is.na(height)) %>%
-         filter(age_days < input$xmax + 50) %>%
-         ggplot(aes(x=age_days, y = height, color=kid)) +
-         geom_line(size=2, alpha=.7) +
-         geom_point(size=2) +
-         xlim(-1, input$xmax) +
-        #ylim(40, 110) +
-         scale_color_viridis_d() +
-         theme_ipsum(base_size = 14, axis_title_size = 16) +
-         theme(legend.title=element_text(size=16),
-               legend.text=element_text(size=16),
-               legend.position = "none") +
-         labs(x="Age (days)", y="Height (cm)", color="")
-
+   
+   output$plot_height <- renderHighchart({
+     #
+     df %>%
+       filter(!is.na(height)) %>%
+       filter(age_days < input$xmax + 50) %>%
+       
+       hchart(., "spline", hcaes(age_days, height, group=kid)) %>% 
+       hc_colors(colors) %>% 
+       hc_xAxis(title= list(text ="Age (days)")) %>% 
+       hc_yAxis(title= list(text ="Height (cm)"))
+     
+     
    })
+
+
 }
 
 # Run the application
