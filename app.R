@@ -22,6 +22,7 @@ df <- rio::import("https://docs.google.com/spreadsheets/d/1NSPYkxTzIE7USvVa7Mmhc
 #my_xlim <- df %>% group_by(kid) %>%
 #  summarise(max = max(age_days, na.rm=T) + 50)
 
+#set starter value at age of oldes kid
 start_value <-  df %>% 
   filter(kid=="Julius") %>%
   summarise(max(age_days, na.rm=T))
@@ -29,8 +30,10 @@ start_value <-  df %>%
 start_value <- start_value[1,1]
 start_value <- plyr::round_any(start_value, 100, f=ceiling)
 
+#set colors for me and kids
 colors <- viridisLite::viridis(3)
 
+#pick a matching color for the time slider
 slide_col <- viridisLite::viridis(6)[3]
 
 slider <-  sliderInput(inputId = "xmax",
@@ -83,7 +86,7 @@ server <- function(input, output) {
        filter(!is.na(height)) %>%
        filter(age_days < input$xmax + 50) %>%
        
-       hchart(., "line", hcaes(age_days, height, group=kid)) %>% 
+       hchart(., "spline", hcaes(age_days, height, group=kid)) %>% 
        hc_colors(colors) %>% 
        hc_xAxis(title= list(text ="Age (days)")) %>% 
        hc_yAxis(title= list(text ="Height (cm)"))
